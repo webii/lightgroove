@@ -14,6 +14,7 @@ a = Analysis(
         'src.dmx_controller',
         'src.fixture_manager',
         'src.color_manager',
+        'src.move_manager',
         'src.http_api',
         'src.ui_generator',
     ],
