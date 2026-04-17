@@ -401,3 +401,10 @@ class FixtureManager:
             if self.has_pan_tilt(fixture_id):
                 self.set_fixture_position(fixture_id, position)
 
+    def reload_patch(self, patch_file: str):
+        """Reload patch from file and reinitialize all fixtures."""
+        self.patch_config = self._load_json(patch_file)
+        self.fixtures = {}
+        self._initialize_fixtures()
+        print("Fixture Manager: Patch reloaded")
+

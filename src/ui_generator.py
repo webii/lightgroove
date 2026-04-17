@@ -23,12 +23,16 @@ def generate_ui(fixture_manager, output_dir: Path, api_base: str = "") -> Path:
     tab_faders = _load_template(template_dir / "tab_faders.html")
     tab_colors = _load_template(template_dir / "tab_colors.html")
     tab_move = _load_template(template_dir / "tab_move.html")
+    tab_fixtures = _load_template(template_dir / "tab_fixtures.html")
+    tab_patch = _load_template(template_dir / "tab_patch.html")
     tab_config = _load_template(template_dir / "tab_config.html")
     config_logic = _load_template(template_dir / "config_logic.js")
-    
+    patch_logic = _load_template(template_dir / "patch_logic.js")
+    fixture_editor_logic = _load_template(template_dir / "fixture_editor_logic.js")
+
     # Insert globals section into globals tab
     tab_globals = tab_globals.replace("{GLOBALS_SECTION}", globals_section)
-    
+
     # Combine all templates
     rendered = (
         base_template
@@ -36,8 +40,12 @@ def generate_ui(fixture_manager, output_dir: Path, api_base: str = "") -> Path:
         .replace("{TAB_FADERS}", tab_faders)
         .replace("{TAB_COLORS}", tab_colors)
         .replace("{TAB_MOVE}", tab_move)
+        .replace("{TAB_FIXTURES}", tab_fixtures)
+        .replace("{TAB_PATCH}", tab_patch)
         .replace("{TAB_CONFIG}", tab_config)
         .replace("{CONFIG_LOGIC}", config_logic)
+        .replace("{PATCH_LOGIC}", patch_logic)
+        .replace("{FIXTURE_EDITOR_LOGIC}", fixture_editor_logic)
         .replace("__API_BASE__", api_base or "")
         .replace("__API_BASE_LABEL__", api_base or "(relative)")
     )

@@ -1,5 +1,13 @@
 <div id="tab-config" class="tab-content">
   <div class="grid">
+    <!-- Network Discovery Section -->
+    <div class="card" style="flex: 1; min-width: 400px;">
+      <h3>Discover ArtNet Nodes</h3>
+      <button id="scan-network-btn" style="margin-bottom: 10px;">Scan Network</button>
+      <div id="discovery-status" style="font-size: 12px; color: #9ca3af; margin-bottom: 10px; display: none;"></div>
+      <div id="discovered-nodes-list"></div>
+    </div>
+
     <!-- ArtNet Nodes Section -->
     <div class="card" style="flex: 1; min-width: 400px; min-height: 300px;">
       <h3>ArtNet Nodes</h3>

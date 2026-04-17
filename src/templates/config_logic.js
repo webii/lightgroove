@@ -285,6 +285,94 @@ function updateColorPreview() {
   }
 }
 
+// ArtNet Network Discovery
+async function scanForNodes() {
+  const btn = document.getElementById('scan-network-btn');
+  const status = document.getElementById('discovery-status');
+  const list = document.getElementById('discovered-nodes-list');
+
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  status.style.display = 'block';
+  status.textContent = 'Scanning network for ArtNet nodes (2 seconds)...';
+  list.innerHTML = '';
+
+  try {
+    const res = await fetch(`${apiBase}/api/artnet/discover`);
+    const data = await res.json();
+
+    btn.disabled = false;
+    btn.textContent = 'Scan Network';
+
+    if (data.error) {
+      status.textContent = 'Scan failed: ' + data.error;
+      return;
+    }
+
+    if (data.nodes && data.nodes.length > 0) {
+      status.textContent = `Found ${data.nodes.length} node(s) on the network.`;
+      renderDiscoveredNodes(data.nodes);
+    } else {
+      status.textContent = 'No ArtNet nodes found on the network.';
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Scan Network';
+    status.textContent = 'Scan failed: ' + e.message;
+  }
+}
+
+function renderDiscoveredNodes(nodes) {
+  const list = document.getElementById('discovered-nodes-list');
+  list.innerHTML = '';
+
+  nodes.forEach(node => {
+    const alreadyAdded = artnetConfig && artnetConfig.nodes.some(n => n.ip === node.ip);
+    const card = document.createElement('div');
+    card.style.cssText = 'border: 1px solid #374151; padding: 10px; margin-bottom: 10px; border-radius: 8px; background: #111827;';
+
+    const universesText = node.universes && node.universes.length
+      ? node.universes.join(', ')
+      : '—';
+
+    const addBtn = alreadyAdded
+      ? '<span style="padding: 4px 10px; border-radius: 4px; background: #065f46; font-size: 12px; color: #d1fae5;">Added</span>'
+      : `<button class="color-btn secondary" style="padding: 6px 12px; font-size: 12px;" onclick='addDiscoveredNode(${JSON.stringify(node)})'>Add</button>`;
+
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div style="flex: 1;">
+          <div style="font-weight: 600; margin-bottom: 4px;">${node.name || node.ip}</div>
+          <div style="font-size: 12px; color: #9ca3af;">
+            <div>IP: ${node.ip}</div>
+            ${node.short_name && node.short_name !== node.name ? `<div>Short name: ${node.short_name}</div>` : ''}
+            <div>Ports: ${node.num_ports} &nbsp;&bull;&nbsp; Universes: ${universesText}</div>
+          </div>
+        </div>
+        <div style="flex-shrink: 0; margin-left: 10px;">${addBtn}</div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+window.addDiscoveredNode = function(node) {
+  document.getElementById('node-modal-title').textContent = 'Add Discovered Node';
+  document.getElementById('node-modal-id').value = '';
+  document.getElementById('node-id').value = node.ip.replace(/\./g, '-');
+  document.getElementById('node-id').disabled = false;
+  document.getElementById('node-name').value = node.name || node.ip;
+  document.getElementById('node-ip').value = node.ip;
+  document.getElementById('node-universes').value = node.universes && node.universes.length
+    ? node.universes.join(', ')
+    : '0';
+  document.getElementById('node-description').value = node.long_name || '';
+  document.getElementById('node-broadcast').checked = false;
+  document.getElementById('node-enabled').checked = true;
+
+  document.getElementById('node-modal').style.display = 'flex';
+};
+
 // Event listeners
 let eventListenersInitialized = false;
 
@@ -293,6 +381,11 @@ function initConfigEventListeners() {
   if (eventListenersInitialized) return;
   eventListenersInitialized = true;
   
+  const scanBtn = document.getElementById('scan-network-btn');
+  if (scanBtn) {
+    scanBtn.addEventListener('click', scanForNodes);
+  }
+
   const addNodeBtn = document.getElementById('add-node-btn');
   if (addNodeBtn) {
     addNodeBtn.addEventListener('click', () => {

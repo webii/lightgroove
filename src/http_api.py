@@ -135,6 +135,41 @@ class HttpApiServer:
                     self.wfile.write(json.dumps(state).encode("utf-8"))
                     return
 
+                if self.path.startswith("/api/config/fixtures"):
+                    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'fixtures.json')
+                    try:
+                        with open(config_path, 'r') as f:
+                            config = json.load(f)
+                        self._set_headers()
+                        self.wfile.write(json.dumps(config).encode("utf-8"))
+                    except Exception as e:
+                        self._set_headers(500)
+                        self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                    return
+
+                if self.path.startswith("/api/config/patch"):
+                    config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'patch.json')
+                    try:
+                        with open(config_path, 'r') as f:
+                            config = json.load(f)
+                        self._set_headers()
+                        self.wfile.write(json.dumps(config).encode("utf-8"))
+                    except Exception as e:
+                        self._set_headers(500)
+                        self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                    return
+
+                if self.path.startswith("/api/artnet/discover"):
+                    try:
+                        from dmx_controller import discover_artnet_nodes
+                        nodes = discover_artnet_nodes(timeout=2.0)
+                        self._set_headers()
+                        self.wfile.write(json.dumps({"nodes": nodes}).encode("utf-8"))
+                    except Exception as e:
+                        self._set_headers(500)
+                        self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                    return
+
                 if self.path.startswith("/api/config/artnet"):
                     config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'artnet.json')
                     try:
@@ -311,6 +346,34 @@ class HttpApiServer:
                             except Exception as reload_error:
                                 print(f"Warning: Failed to reload DMX config: {reload_error}")
                             
+                            self._set_headers()
+                            self.wfile.write(json.dumps({"success": True, "reloaded": True}).encode("utf-8"))
+                        except Exception as e:
+                            self._set_headers(500)
+                            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                        return
+
+                    if path == "/api/config/fixtures":
+                        config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'fixtures.json')
+                        try:
+                            with open(config_path, 'w') as f:
+                                json.dump(payload, f, indent=2)
+                            self._set_headers()
+                            self.wfile.write(json.dumps({"success": True}).encode("utf-8"))
+                        except Exception as e:
+                            self._set_headers(500)
+                            self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+                        return
+
+                    if path == "/api/config/patch":
+                        config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'patch.json')
+                        try:
+                            with open(config_path, 'w') as f:
+                                json.dump(payload, f, indent=2)
+                            try:
+                                fixture_manager.reload_patch(config_path)
+                            except Exception as reload_error:
+                                print(f"Warning: Failed to reload patch: {reload_error}")
                             self._set_headers()
                             self.wfile.write(json.dumps({"success": True, "reloaded": True}).encode("utf-8"))
                         except Exception as e:

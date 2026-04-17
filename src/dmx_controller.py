@@ -4,9 +4,79 @@ Manages DMX output via serial, ArtNet or virtual interfaces
 Author: https://github.com/oliverbyte
 """
 import json
+import socket
+import struct
 import threading
 import time
 from typing import Optional, Dict, List, Tuple
+
+
+def discover_artnet_nodes(timeout: float = 2.0) -> list:
+    """Broadcast ArtPoll and collect ArtPollReply packets to find nodes on the network."""
+    ARTNET_PORT = 6454
+    ARTPOLL_REPLY_OPCODE = 0x2100
+
+    artpoll = (
+        b'Art-Net\x00'  # ID
+        b'\x00\x20'     # OpCode ArtPoll (0x2000, little-endian)
+        b'\x00\x0e'     # ProtVer 14
+        b'\x00'         # Flags
+        b'\x00'         # DiagPriority
+    )
+
+    discovered = []
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except AttributeError:
+            pass  # Not available on Windows
+        sock.settimeout(0.1)
+        sock.bind(('', ARTNET_PORT))
+        sock.sendto(artpoll, ('255.255.255.255', ARTNET_PORT))
+
+        deadline = time.time() + timeout
+        seen_ips = set()
+
+        while time.time() < deadline:
+            try:
+                data, addr = sock.recvfrom(1024)
+                ip = addr[0]
+                if ip in seen_ips or len(data) < 194:
+                    continue
+                if data[:8] != b'Art-Net\x00':
+                    continue
+                opcode = struct.unpack_from('<H', data, 8)[0]
+                if opcode != ARTPOLL_REPLY_OPCODE:
+                    continue
+
+                short_name = data[26:44].rstrip(b'\x00').decode('ascii', errors='replace').strip()
+                long_name  = data[44:108].rstrip(b'\x00').decode('ascii', errors='replace').strip()
+                num_ports  = struct.unpack_from('>H', data, 172)[0]
+                sw_out     = [data[190 + i] for i in range(min(num_ports, 4))]
+
+                seen_ips.add(ip)
+                discovered.append({
+                    'ip': ip,
+                    'short_name': short_name,
+                    'long_name': long_name,
+                    'name': long_name or short_name or ip,
+                    'num_ports': num_ports,
+                    'universes': sw_out,
+                })
+            except socket.timeout:
+                continue
+    except Exception as e:
+        print(f"ArtNet discovery error: {e}")
+    finally:
+        try:
+            sock.close()
+        except Exception:
+            pass
+
+    return discovered
 
 
 class DMXUniverse:
