@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
+import time
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -475,6 +477,16 @@ class HttpApiServer:
                         self._set_headers()
                         self.wfile.write(json.dumps({"success": True}).encode("utf-8"))
                         return
+
+                    if path == "/api/restart":
+                        def _do_restart():
+                            time.sleep(0.5)
+                            os.execv(sys.executable, sys.argv)
+                        threading.Thread(target=_do_restart, daemon=True).start()
+                        self._set_headers()
+                        self.wfile.write(json.dumps({"success": True}).encode("utf-8"))
+                        return
+
                 except Exception as exc:  # keep API resilient
                     self._set_headers(400)
                     self.wfile.write(json.dumps({"error": str(exc)}).encode("utf-8"))

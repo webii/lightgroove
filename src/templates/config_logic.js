@@ -582,6 +582,34 @@ function initConfigEventListeners() {
     });
   }
 
+  const restartBtn = document.getElementById('restart-btn');
+  if (restartBtn) {
+    restartBtn.addEventListener('click', async () => {
+      if (!confirm('Restart LightGroove?\n\nThe server will be unavailable for a few seconds.')) return;
+      restartBtn.disabled = true;
+      restartBtn.textContent = 'Restarting…';
+      try {
+        await fetch(`${apiBase}/api/restart`, { method: 'POST' });
+      } catch (_) {
+        // Expected — connection drops as the process restarts
+      }
+      showToast('LightGroove is restarting…', 'info', 8000);
+      // Connection monitor will detect the drop and reconnect automatically.
+      // Re-enable the button once the server is back.
+      const poll = setInterval(async () => {
+        try {
+          const r = await fetch(`${apiBase}/api/grandmaster`);
+          if (r.ok) {
+            clearInterval(poll);
+            restartBtn.disabled = false;
+            restartBtn.textContent = 'Restart LightGroove';
+            showToast('LightGroove is back online', 'success');
+          }
+        } catch (_) {}
+      }, 1000);
+    });
+  }
+
   // Load config when Config tab is activated
   const tabs = document.querySelectorAll('.tab');
   tabs.forEach(tab => {

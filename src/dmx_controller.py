@@ -11,6 +11,21 @@ import time
 from typing import Optional, Dict, List, Tuple
 
 
+def _decode_artnet_str(raw: bytes) -> str:
+    """Decode a null-terminated ArtNet name field.
+
+    ArtNet strings are null-terminated; bytes after the first null are padding
+    and must be ignored before decoding.  Devices may use UTF-8 or Latin-1, so
+    try UTF-8 first and fall back to Latin-1 (which maps all 256 byte values).
+    """
+    null = raw.find(b'\x00')
+    raw = raw[:null] if null != -1 else raw
+    try:
+        return raw.decode('utf-8').strip()
+    except UnicodeDecodeError:
+        return raw.decode('latin-1').strip()
+
+
 def discover_artnet_nodes(timeout: float = 2.0) -> list:
     """Broadcast ArtPoll and collect ArtPollReply packets to find nodes on the network."""
     ARTNET_PORT = 6454
@@ -52,8 +67,8 @@ def discover_artnet_nodes(timeout: float = 2.0) -> list:
                 if opcode != ARTPOLL_REPLY_OPCODE:
                     continue
 
-                short_name = data[26:44].rstrip(b'\x00').decode('ascii', errors='replace').strip()
-                long_name  = data[44:108].rstrip(b'\x00').decode('ascii', errors='replace').strip()
+                short_name = _decode_artnet_str(data[26:44])
+                long_name  = _decode_artnet_str(data[44:108])
                 num_ports  = struct.unpack_from('>H', data, 172)[0]
                 sw_out     = [data[190 + i] for i in range(min(num_ports, 4))]
 
