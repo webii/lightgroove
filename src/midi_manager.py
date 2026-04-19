@@ -25,7 +25,23 @@ class MidiManager:
     # Config persistence
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _init_backend():
+        """Force ALSA backend on Linux to avoid requiring a JACK server."""
+        try:
+            import mido
+            import mido.backends.rtmidi  # noqa: F401
+            import rtmidi
+            mido.set_backend('mido.backends.rtmidi')
+            # Prefer ALSA over JACK on Linux
+            if hasattr(rtmidi, 'API_LINUX_ALSA'):
+                mido.backend.module.RtMidiIn = lambda: rtmidi.MidiIn(rtmidi.API_LINUX_ALSA)
+                mido.backend.module.RtMidiOut = lambda: rtmidi.MidiOut(rtmidi.API_LINUX_ALSA)
+        except Exception:
+            pass
+
     def _load_config(self):
+        self._init_backend()
         if self._config_file.exists():
             try:
                 data = json.loads(self._config_file.read_text())
