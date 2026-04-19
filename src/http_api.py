@@ -577,7 +577,16 @@ class HttpApiServer:
                     if path == "/api/restart":
                         def _do_restart():
                             time.sleep(0.5)
-                            os.execv(sys.executable, sys.argv)
+                            try:
+                                if getattr(sys, 'frozen', False):
+                                    # PyInstaller: sys.argv[0] is already the binary
+                                    os.execv(sys.executable, sys.argv)
+                                else:
+                                    # Regular Python: prepend interpreter so argv[0] is set correctly
+                                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                            except Exception as e:
+                                print(f"Restart failed: {e}", flush=True)
+                                os._exit(1)
                         threading.Thread(target=_do_restart, daemon=True).start()
                         self._set_headers()
                         self.wfile.write(json.dumps({"success": True}).encode("utf-8"))

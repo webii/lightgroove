@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 
 class MidiManager:
@@ -14,15 +15,17 @@ class MidiManager:
         self._active_inputs: Dict[str, object] = {}
         self._active_outputs: Dict[str, object] = {}
         self._last_event: Optional[dict] = None
-        self._suppress_feedback: int = 0  # incremented while applying MIDI input
+        self._suppress_feedback: int = 0
+        self._stop_event = threading.Event()
         self.fixture_manager = None   # set by main.py after init
         self.global_handlers: Dict[str, callable] = {}  # set by main.py after init
         self._config = {"active_inputs": [], "active_outputs": [], "mappings": []}
         self._load_config()
         self._reconnect_all()
+        self._start_reconnect_thread()
 
     # ------------------------------------------------------------------
-    # Config persistence
+    # Backend / config
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -106,7 +109,6 @@ class MidiManager:
 
     def add_mapping(self, midi_channel: int, cc: int, fixture_id: str, channel_name: str):
         with self._lock:
-            # Remove any existing mapping for this fixture channel
             self._config["mappings"] = [
                 m for m in self._config["mappings"]
                 if not (m["fixture_id"] == fixture_id and m["channel_name"] == channel_name)
@@ -179,38 +181,63 @@ class MidiManager:
         """Deactivate a device and clear all learned mappings."""
         with self._lock:
             if direction == "input":
-                if name in self._config["active_inputs"]:
-                    self._config["active_inputs"].remove(name)
-                self._close_input(name)
+                self._config["active_inputs"] = [n for n in self._config["active_inputs"] if n != name]
             elif direction == "output":
-                if name in self._config["active_outputs"]:
-                    self._config["active_outputs"].remove(name)
-                self._close_output(name)
+                self._config["active_outputs"] = [n for n in self._config["active_outputs"] if n != name]
             self._config["mappings"] = []
             self._save_config()
+
+        # Close port outside lock
+        if direction == "input":
+            self._close_input(name)
+        elif direction == "output":
+            self._close_output(name)
 
     # ------------------------------------------------------------------
     # Port management
     # ------------------------------------------------------------------
 
     def _reconnect_all(self):
+        """Open any configured ports that are available but not currently open."""
         import mido
-        available_inputs = set(mido.get_input_names())
-        available_outputs = set(mido.get_output_names())
+        try:
+            available_inputs = set(mido.get_input_names())
+            available_outputs = set(mido.get_output_names())
+        except Exception:
+            return
 
-        for name in list(self._config["active_inputs"]):
-            if name in available_inputs and name not in self._active_inputs:
-                self._open_input(name)
+        with self._lock:
+            to_open_inputs = [
+                n for n in self._config["active_inputs"]
+                if n in available_inputs and n not in self._active_inputs
+            ]
+            to_open_outputs = [
+                n for n in self._config["active_outputs"]
+                if n in available_outputs and n not in self._active_outputs
+            ]
 
-        for name in list(self._config["active_outputs"]):
-            if name in available_outputs and name not in self._active_outputs:
-                self._open_output(name)
+        for name in to_open_inputs:
+            self._open_input(name)
+        for name in to_open_outputs:
+            self._open_output(name)
+
+    def _start_reconnect_thread(self):
+        t = threading.Thread(target=self._reconnect_loop, daemon=True, name="midi-reconnect")
+        t.start()
+
+    def _reconnect_loop(self):
+        while not self._stop_event.wait(timeout=5):
+            try:
+                self._reconnect_all()
+            except Exception as e:
+                print(f"MIDI: reconnect check error: {e}")
 
     def _open_input(self, name: str):
         import mido
         try:
             port = mido.open_input(name, callback=self._on_message)
-            self._active_inputs[name] = port
+            with self._lock:
+                self._active_inputs[name] = port
             print(f"MIDI: opened input '{name}'")
         except Exception as e:
             print(f"MIDI: failed to open input '{name}': {e}")
@@ -219,13 +246,15 @@ class MidiManager:
         import mido
         try:
             port = mido.open_output(name)
-            self._active_outputs[name] = port
+            with self._lock:
+                self._active_outputs[name] = port
             print(f"MIDI: opened output '{name}'")
         except Exception as e:
             print(f"MIDI: failed to open output '{name}': {e}")
 
     def _close_input(self, name: str):
-        port = self._active_inputs.pop(name, None)
+        with self._lock:
+            port = self._active_inputs.pop(name, None)
         if port:
             try:
                 port.close()
@@ -234,7 +263,8 @@ class MidiManager:
             print(f"MIDI: closed input '{name}'")
 
     def _close_output(self, name: str):
-        port = self._active_outputs.pop(name, None)
+        with self._lock:
+            port = self._active_outputs.pop(name, None)
         if port:
             try:
                 port.close()
@@ -249,32 +279,44 @@ class MidiManager:
     def activate(self, name: str, direction: str):
         with self._lock:
             if direction == "input":
+                already_open = name in self._active_inputs
                 if name not in self._config["active_inputs"]:
                     self._config["active_inputs"].append(name)
-                if name not in self._active_inputs:
-                    self._open_input(name)
             elif direction == "output":
+                already_open = name in self._active_outputs
                 if name not in self._config["active_outputs"]:
                     self._config["active_outputs"].append(name)
-                if name not in self._active_outputs:
-                    self._open_output(name)
+            else:
+                return
             self._save_config()
+
+        if not already_open:
+            if direction == "input":
+                self._open_input(name)
+            else:
+                self._open_output(name)
 
     def deactivate(self, name: str, direction: str):
         with self._lock:
             if direction == "input":
-                if name in self._config["active_inputs"]:
-                    self._config["active_inputs"].remove(name)
-                self._close_input(name)
+                self._config["active_inputs"] = [n for n in self._config["active_inputs"] if n != name]
             elif direction == "output":
-                if name in self._config["active_outputs"]:
-                    self._config["active_outputs"].remove(name)
-                self._close_output(name)
+                self._config["active_outputs"] = [n for n in self._config["active_outputs"] if n != name]
+            else:
+                return
             self._save_config()
 
+        if direction == "input":
+            self._close_input(name)
+        else:
+            self._close_output(name)
+
     def shutdown(self):
+        self._stop_event.set()
         with self._lock:
-            for name in list(self._active_inputs):
-                self._close_input(name)
-            for name in list(self._active_outputs):
-                self._close_output(name)
+            inputs = list(self._active_inputs)
+            outputs = list(self._active_outputs)
+        for name in inputs:
+            self._close_input(name)
+        for name in outputs:
+            self._close_output(name)
