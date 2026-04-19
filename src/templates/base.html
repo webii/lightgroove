@@ -78,6 +78,10 @@
     @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
     @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }
     .toast.removing { animation: slideOut 0.3s ease-out forwards; }
+    #color-cycle-drop.drag-over { border-color: var(--accent); background: rgba(56,189,248,0.06); }
+    .cycle-chip { display: flex; align-items: center; gap: 5px; padding: 4px 8px 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: default; border: 2px solid rgba(0,0,0,0.15); }
+    .cycle-chip-remove { background: none; border: none; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 2px; opacity: 0.7; font-weight: 700; }
+    .cycle-chip-remove:hover { opacity: 1; }
     .slider-col.midi-target {
       border-color: #f59e0b;
       box-shadow: 0 0 0 2px #f59e0b66;
@@ -437,6 +441,7 @@
         // Reload colors when switching to Colors tab
         if (targetTab === 'colors') {
           loadStaticColors();
+          loadColorCycle();
         }
       });
     });
@@ -445,7 +450,7 @@
     async function loadStaticColors() {
       try {
         const res = await fetch(`${apiBase}/api/colors`);
-        const serverColors = await res.json();
+        serverColors = await res.json();
         const grid = document.getElementById('static-colors');
         
         // Clear existing buttons
@@ -477,6 +482,12 @@
           
           btn.textContent = colorName.charAt(0).toUpperCase() + colorName.slice(1);
           
+          btn.draggable = true;
+          btn.addEventListener('dragstart', e => {
+            e.dataTransfer.effectAllowed = 'copy';
+            e.dataTransfer.setData('text/plain', colorName);
+          });
+
           btn.addEventListener('click', async () => {
             // Stop any running FX first
             await post(`${apiBase}/api/fx/stop`, {});
@@ -494,6 +505,86 @@
       } catch (e) {
         console.error('Failed to load colors:', e);
       }
+    }
+
+    // Color Cycle
+    let colorCycle = [];
+    let serverColors = {};  // populated by loadStaticColors, reused for chip rendering
+
+    async function loadColorCycle() {
+      try {
+        const res = await fetch(`${apiBase}/api/config/color_cycle`);
+        const data = await res.json();
+        colorCycle = data.color_cycle || [];
+        renderColorCycle();
+      } catch (e) {
+        console.error('Failed to load color cycle:', e);
+      }
+    }
+
+    async function saveColorCycle() {
+      try {
+        await post(`${apiBase}/api/config/color_cycle`, { color_cycle: colorCycle });
+      } catch (e) {
+        console.error('Failed to save color cycle:', e);
+      }
+    }
+
+    function renderColorCycle() {
+      const drop = document.getElementById('color-cycle-drop');
+      const empty = document.getElementById('color-cycle-empty');
+      if (!drop) return;
+
+      // Remove existing chips
+      drop.querySelectorAll('.cycle-chip').forEach(el => el.remove());
+
+      if (colorCycle.length === 0) {
+        if (empty) empty.style.display = '';
+      } else {
+        if (empty) empty.style.display = 'none';
+        colorCycle.forEach((name, idx) => {
+          const color = serverColors[name];
+          const r = color ? Math.min(255, Math.round((color.r + color.w) * 255)) : 128;
+          const g = color ? Math.min(255, Math.round((color.g + color.w) * 255)) : 128;
+          const b = color ? Math.min(255, Math.round((color.b + color.w) * 255)) : 128;
+          const brightness = r * 0.299 + g * 0.587 + b * 0.114;
+          const textColor = brightness > 100 ? '#0b1220' : 'white';
+
+          const chip = document.createElement('div');
+          chip.className = 'cycle-chip';
+          chip.style.background = `rgb(${r},${g},${b})`;
+          chip.style.color = textColor;
+          chip.innerHTML = `<span>${name}</span><button class="cycle-chip-remove" style="color:${textColor}" title="Remove">×</button>`;
+          chip.querySelector('button').addEventListener('click', () => {
+            colorCycle.splice(idx, 1);
+            renderColorCycle();
+            saveColorCycle();
+          });
+          drop.appendChild(chip);
+        });
+      }
+    }
+
+    // Drop zone wiring (deferred until DOM ready — elements added by template)
+    function initColorCycleDrop() {
+      const drop = document.getElementById('color-cycle-drop');
+      if (!drop) return;
+      drop.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        drop.classList.add('drag-over');
+      });
+      drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+      drop.addEventListener('drop', e => {
+        e.preventDefault();
+        drop.classList.remove('drag-over');
+        const name = e.dataTransfer.getData('text/plain');
+        if (name && serverColors[name] !== undefined) {
+          colorCycle.push(name);
+          renderColorCycle();
+          saveColorCycle();
+        }
+      });
     }
 
     // Color FX controls
@@ -766,7 +857,8 @@
     }
 
     loadFixtures();
-    loadStaticColors();
+    loadStaticColors().then(() => loadColorCycle());
+    initColorCycleDrop();
     
     // Load current grandmaster value
     async function loadGrandmaster() {

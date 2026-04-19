@@ -6,6 +6,16 @@
         <!-- Colors will be loaded from server -->
       </div>
     </div>
+
+    <div class="card" style="flex: 2; min-width: 360px;">
+      <h3>Color Cycle</h3>
+      <div style="font-size: 12px; color: #6b7280; margin-bottom: 12px;">Drag colors from Static Colors. Color FX effects use these colors only when the cycle is non-empty.</div>
+      <div id="color-cycle-drop"
+           style="min-height: 72px; border: 2px dashed #374151; border-radius: 8px; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; align-content: flex-start; transition: border-color 0.15s, background 0.15s;">
+        <span id="color-cycle-empty" style="color: #4b5563; font-size: 12px; align-self: center; pointer-events: none;">Drop colors here</span>
+      </div>
+    </div>
+
     <div class="card" style="width: fit-content;">
       <h3>Color FX</h3>
       <div style="display: flex; flex-direction: column; gap: 10px;">
