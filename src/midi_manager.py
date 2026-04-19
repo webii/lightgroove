@@ -27,16 +27,13 @@ class MidiManager:
 
     @staticmethod
     def _init_backend():
-        """Force ALSA backend on Linux to avoid requiring a JACK server."""
+        """Force ALSA on Linux so JACK is never probed."""
         try:
-            import mido
-            import mido.backends.rtmidi  # noqa: F401
             import rtmidi
+            import mido
             mido.set_backend('mido.backends.rtmidi')
-            # Prefer ALSA over JACK on Linux
             if hasattr(rtmidi, 'API_LINUX_ALSA'):
-                mido.backend.module.RtMidiIn = lambda: rtmidi.MidiIn(rtmidi.API_LINUX_ALSA)
-                mido.backend.module.RtMidiOut = lambda: rtmidi.MidiOut(rtmidi.API_LINUX_ALSA)
+                mido.backend.api = 'LINUX_ALSA'
         except Exception:
             pass
 
