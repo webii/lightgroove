@@ -198,7 +198,7 @@ class MidiManager:
     # ------------------------------------------------------------------
 
     def _reconnect_all(self):
-        """Open any configured ports that are available but not currently open."""
+        """Close stale ports for disconnected devices, reopen for reconnected ones."""
         import mido
         try:
             available_inputs = set(mido.get_input_names())
@@ -207,19 +207,32 @@ class MidiManager:
             return
 
         with self._lock:
-            to_open_inputs = [
-                n for n in self._config["active_inputs"]
-                if n in available_inputs and n not in self._active_inputs
-            ]
-            to_open_outputs = [
-                n for n in self._config["active_outputs"]
-                if n in available_outputs and n not in self._active_outputs
-            ]
+            configured_inputs = list(self._config["active_inputs"])
+            configured_outputs = list(self._config["active_outputs"])
+            open_inputs = set(self._active_inputs)
+            open_outputs = set(self._active_outputs)
 
-        for name in to_open_inputs:
-            self._open_input(name)
-        for name in to_open_outputs:
-            self._open_output(name)
+        # Close ports for devices that have disappeared
+        for name in configured_inputs:
+            if name in open_inputs and name not in available_inputs:
+                print(f"MIDI: '{name}' disconnected, closing stale port")
+                self._close_input(name)
+        for name in configured_outputs:
+            if name in open_outputs and name not in available_outputs:
+                print(f"MIDI: '{name}' disconnected, closing stale port")
+                self._close_output(name)
+
+        # Re-snapshot after closures, then open any available-but-not-open ports
+        with self._lock:
+            open_inputs = set(self._active_inputs)
+            open_outputs = set(self._active_outputs)
+
+        for name in configured_inputs:
+            if name in available_inputs and name not in open_inputs:
+                self._open_input(name)
+        for name in configured_outputs:
+            if name in available_outputs and name not in open_outputs:
+                self._open_output(name)
 
     def _start_reconnect_thread(self):
         t = threading.Thread(target=self._reconnect_loop, daemon=True, name="midi-reconnect")
