@@ -4,7 +4,7 @@
     <div class="card" style="flex: 1; min-width: 400px;">
       <h3>Discover ArtNet Nodes</h3>
       <button id="scan-network-btn" style="margin-bottom: 10px;">Scan Network</button>
-      <div id="discovery-status" style="font-size: 12px; color: #9ca3af; margin-bottom: 10px; display: none;"></div>
+      <div id="discovery-status" style="font-size: 12px; color: var(--muted); margin-bottom: 10px; display: none;"></div>
       <div id="discovered-nodes-list"></div>
     </div>
 
@@ -28,22 +28,22 @@
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
         <div>
           <label style="display: block; margin-bottom: 5px; font-weight: 500;">Default Output Mode</label>
-          <select id="default-output-mode" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #1f2937; color: white;">
+          <select id="default-output-mode" style="width: 100%;">
             <option value="virtual">Virtual</option>
             <option value="artnet">ArtNet</option>
           </select>
         </div>
         <div>
           <label style="display: block; margin-bottom: 5px; font-weight: 500;">FPS</label>
-          <input type="number" id="fps" min="1" max="100" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #1f2937; color: white;">
+          <input type="number" id="fps" min="1" max="100" style="width: 100%;">
         </div>
         <div>
           <button id="save-global-settings-btn" style="margin-top: 24px;">Save Settings</button>
         </div>
       </div>
-      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #374151;">
-        <div style="font-size: 12px; color: #6b7280; margin-bottom: 10px;">Restart to apply config changes that require a full reinitialisation.</div>
-        <button id="restart-btn" style="background: #7f1d1d; border: 1px solid #991b1b; color: #fca5a5;">Restart LightGroove</button>
+      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <div style="font-size: 12px; color: var(--dim); margin-bottom: 10px;">Restart to apply config changes that require a full reinitialisation.</div>
+        <button id="restart-btn" style="background: rgba(255,77,77,0.1); border: 1px solid var(--danger-500); color: var(--danger-500);">Restart LightGroove</button>
       </div>
     </div>
     
@@ -51,15 +51,15 @@
     <div class="card" style="flex: 1; min-width: 400px;">
       <h3>MIDI Devices</h3>
 
-      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 8px;">Paired Devices</div>
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--dim); margin-bottom: 8px;">Paired Devices</div>
       <div id="midi-paired-list">
-        <div style="font-size: 12px; color: #6b7280;">No paired devices.</div>
+        <div style="font-size: 12px; color: var(--dim);">No paired devices.</div>
       </div>
 
-      <div style="border-top: 1px solid #374151; margin: 16px 0;"></div>
+      <div style="border-top: 1px solid var(--border); margin: 16px 0;"></div>
 
       <button id="scan-midi-btn" style="margin-bottom: 10px;">Scan for New Devices</button>
-      <div id="midi-status" style="font-size: 12px; color: #9ca3af; margin-bottom: 10px; display: none;"></div>
+      <div id="midi-status" style="font-size: 12px; color: var(--muted); margin-bottom: 10px; display: none;"></div>
       <div id="midi-devices-list"></div>
     </div>
 
@@ -74,29 +74,29 @@
 
 <!-- Modal for Node Edit/Create -->
 <div id="node-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: #1f2937; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+  <div style="background: var(--raised); padding: 20px; border-radius: 4px; max-width: 500px; width: 90%;">
     <h3 id="node-modal-title" style="margin-top: 0;">Add Node</h3>
     <input type="hidden" id="node-modal-id">
     <div style="display: flex; flex-direction: column; gap: 15px;">
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Node ID</label>
-        <input type="text" id="node-id" placeholder="e.g., node1" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <input type="text" id="node-id" placeholder="e.g., node1" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
       </div>
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Name</label>
-        <input type="text" id="node-name" placeholder="e.g., Main ArtNet Node" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <input type="text" id="node-name" placeholder="e.g., Main ArtNet Node" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
       </div>
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">IP Address</label>
-        <input type="text" id="node-ip" placeholder="e.g., 10.10.10.3" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <input type="text" id="node-ip" placeholder="e.g., 10.10.10.3" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
       </div>
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Universes (comma-separated)</label>
-        <input type="text" id="node-universes" placeholder="e.g., 0, 1" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <input type="text" id="node-universes" placeholder="e.g., 0, 1" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
       </div>
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Description</label>
-        <textarea id="node-description" rows="2" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;"></textarea>
+        <textarea id="node-description" rows="2" style="width: 100%; padding: 7px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text); font-family: var(--font-ui); font-size: 13px; resize: vertical;"></textarea>
       </div>
       <div style="display: flex; gap: 10px; align-items: center;">
         <input type="checkbox" id="node-broadcast" style="width: 20px; height: 20px;">
@@ -116,27 +116,27 @@
 
 <!-- Modal for Mapping Edit/Create -->
 <div id="mapping-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: #1f2937; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+  <div style="background: var(--raised); padding: 20px; border-radius: 4px; max-width: 500px; width: 90%;">
     <h3 id="mapping-modal-title" style="margin-top: 0;">Add Universe Mapping</h3>
     <input type="hidden" id="mapping-modal-universe">
     <div style="display: flex; flex-direction: column; gap: 15px;">
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">DMX Universe</label>
-        <input type="number" id="mapping-universe" min="1" placeholder="e.g., 1" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <input type="number" id="mapping-universe" min="1" placeholder="e.g., 1" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
       </div>
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Node</label>
-        <select id="mapping-node" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <select id="mapping-node" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
           <option value="">Select a node...</option>
         </select>
       </div>
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">ArtNet Universe</label>
-        <input type="number" id="mapping-artnet-universe" min="0" placeholder="e.g., 0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <input type="number" id="mapping-artnet-universe" min="0" placeholder="e.g., 0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
       </div>
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Output Mode</label>
-        <select id="mapping-output-mode" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <select id="mapping-output-mode" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
           <option value="artnet">ArtNet</option>
           <option value="virtual">Virtual</option>
         </select>
@@ -151,33 +151,33 @@
 
 <!-- Modal for Color Edit/Create -->
 <div id="color-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
-  <div style="background: #1f2937; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+  <div style="background: var(--raised); padding: 20px; border-radius: 4px; max-width: 500px; width: 90%;">
     <h3 id="color-modal-title" style="margin-top: 0;">Add Color</h3>
     <input type="hidden" id="color-modal-id">
     <div style="display: flex; flex-direction: column; gap: 15px;">
       <div>
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Color Name</label>
-        <input type="text" id="color-name" placeholder="e.g., warm-white" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+        <input type="text" id="color-name" placeholder="e.g., warm-white" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
         <div>
           <label style="display: block; margin-bottom: 5px; font-weight: 500;">Red (0-1)</label>
-          <input type="number" id="color-r" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+          <input type="number" id="color-r" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
         </div>
         <div>
           <label style="display: block; margin-bottom: 5px; font-weight: 500;">Green (0-1)</label>
-          <input type="number" id="color-g" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+          <input type="number" id="color-g" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
         </div>
         <div>
           <label style="display: block; margin-bottom: 5px; font-weight: 500;">Blue (0-1)</label>
-          <input type="number" id="color-b" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+          <input type="number" id="color-b" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
         </div>
         <div>
           <label style="display: block; margin-bottom: 5px; font-weight: 500;">White (0-1)</label>
-          <input type="number" id="color-w" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #374151; background: #111827; color: white;">
+          <input type="number" id="color-w" min="0" max="1" step="0.01" placeholder="0.0" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--ink-100); color: var(--text);">
         </div>
       </div>
-      <div id="color-preview" style="height: 60px; border-radius: 4px; border: 1px solid #374151;"></div>
+      <div id="color-preview" style="height: 60px; border-radius: 4px; border: 1px solid var(--border);"></div>
       <div style="display: flex; gap: 10px; margin-top: 10px;">
         <button id="color-modal-save">Save</button>
         <button class="secondary" id="color-modal-cancel">Cancel</button>

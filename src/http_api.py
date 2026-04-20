@@ -269,6 +269,12 @@ class HttpApiServer:
                             mime = "text/css"
                         elif requested.suffix == ".html":
                             mime = "text/html; charset=utf-8"
+                        elif requested.suffix in (".ttf", ".otf"):
+                            mime = "font/ttf"
+                        elif requested.suffix == ".woff2":
+                            mime = "font/woff2"
+                        elif requested.suffix == ".woff":
+                            mime = "font/woff"
                         data = requested.read_bytes()
                         self._set_headers(content_type=mime)
                         self.wfile.write(data)
