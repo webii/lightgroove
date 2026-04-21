@@ -237,7 +237,7 @@
       align-items: center;
       gap: 6px;
       width: 60px;
-      height: 220px;
+      height: 264px;
       padding: 8px 6px;
       background: var(--ink-100);
       border-radius: 4px;
@@ -309,6 +309,36 @@
     }
 
     .flash-btn:hover { box-shadow: 0 0 14px rgba(255, 180, 84, 0.35); }
+
+    .blackout-btn {
+      background: var(--ink-100);
+      border: 2px solid var(--ink-400);
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 14px 24px;
+      border-radius: 4px;
+      transition: all 0.1s;
+      cursor: pointer;
+      width: 100%;
+      height: auto;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .blackout-btn:hover { border-color: var(--ink-500); color: var(--text); }
+
+    .blackout-btn.active {
+      background: var(--ink-000);
+      border-color: var(--danger-500);
+      color: var(--danger-500);
+      box-shadow: 0 0 10px rgba(255, 77, 77, 0.25);
+    }
 
     .color-grid {
       display: grid;
@@ -462,8 +492,7 @@
   </header>
   <div class="container">
     <div class="tabs">
-      <button class="tab active" data-tab="globals">Globals</button>
-      <button class="tab" data-tab="faders">Faders</button>
+      <button class="tab active" data-tab="console">Console</button>
       <button class="tab" data-tab="colors">Colors</button>
       <button class="tab" data-tab="move">Move</button>
       <button class="tab" data-tab="fixtures">Fixtures</button>
@@ -471,8 +500,14 @@
       <button class="tab" data-tab="config">Config</button>
     </div>
 
-    {TAB_GLOBALS}
-    {TAB_FADERS}
+    <div id="tab-console" class="tab-content active">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+        <button class="secondary midi-learn-btn">MIDI</button>
+      </div>
+      {TAB_GLOBALS}
+      <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; padding-top: 12px; border-top: 1px solid var(--border);">Fixtures</div>
+      {TAB_FADERS}
+    </div>
     {TAB_COLORS}
     {TAB_MOVE}
     {TAB_FIXTURES}
@@ -781,6 +816,29 @@
     flashBtn.addEventListener('touchcancel', (e) => {
       e.preventDefault();
       deactivateFlash();
+    });
+
+    // Blackout button
+    const blackoutBtn = document.getElementById('blackout-btn');
+    let isBlackedOut = false;
+    let preBlackoutGM = 100;
+
+    blackoutBtn.addEventListener('click', async () => {
+      if (!isBlackedOut) {
+        isBlackedOut = true;
+        blackoutBtn.classList.add('active');
+        preBlackoutGM = parseInt(gmSlider.value);
+        await post(`${apiBase}/api/fx/stop`, {});
+        await post(`${apiBase}/api/grandmaster`, { level: 0 });
+        gmSlider.value = 0;
+        gmValue.textContent = '0%';
+      } else {
+        isBlackedOut = false;
+        blackoutBtn.classList.remove('active');
+        await post(`${apiBase}/api/grandmaster`, { level: preBlackoutGM / 100 });
+        gmSlider.value = preBlackoutGM;
+        gmValue.textContent = `${preBlackoutGM}%`;
+      }
     });
 
     // Tab switching
