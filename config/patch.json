@@ -3,15 +3,15 @@
     "1": {
       "fixtures": [
         {
-          "id": "moving1",
-          "type": "uking_mini_moving_light",
-          "start_address": 2,
-          "description": "U-King Mini Moving Light"
-        },
-        {
           "id": "moving2",
           "type": "uking_mini_moving_light",
           "start_address": 16,
+          "description": "U-King Mini Moving Light"
+        },
+        {
+          "id": "moving1",
+          "type": "uking_mini_moving_light",
+          "start_address": 2,
           "description": "U-King Mini Moving Light"
         },
         {
