@@ -717,3 +717,20 @@ select:focus, input[type=text]:focus, input[type=number]:focus {
   border-radius: 2px;
 }
 .scene-btn__action:hover { color: var(--text); background: var(--ink-300); }
+
+/* ── Drag handle (patch view) ──────────────────────────────────── */
+.drag-handle {
+  cursor: grab;
+  color: var(--dim);
+  font-size: 16px;
+  padding: 4px 6px;
+  user-select: none;
+  -webkit-user-select: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.drag-handle:hover { color: var(--muted); }
+.drag-handle:active { cursor: grabbing; }
+.list-card.drag-over-above { border-top: 2px solid var(--accent-500); }
+.list-card.drag-over-below { border-bottom: 2px solid var(--accent-500); }
+.list-card.dragging { opacity: 0.4; }

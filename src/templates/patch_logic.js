@@ -95,7 +95,7 @@ function renderPatch() {
 
   universeKeys.forEach(uid => {
     const udata    = universes[uid];
-    const fixtures = [...(udata.fixtures || [])].sort((a, b) => a.start_address - b.start_address);
+    const fixtures = udata.fixtures || [];
     totalFixtures += fixtures.length;
     const overlaps = findOverlaps(fixtures);
 
@@ -117,7 +117,7 @@ function renderPatch() {
     container.appendChild(section);
 
     const list = section.querySelector(`#u${uid}-list`);
-    fixtures.forEach(fx => {
+    fixtures.forEach((fx, idx) => {
       const eAddr    = endAddress(fx.start_address, fx.type);
       const typeDef  = fixtureTypes && fixtureTypes[fx.type];
       const typeName = typeDef ? typeDef.name : fx.type;
@@ -127,8 +127,12 @@ function renderPatch() {
       const row = document.createElement('div');
       row.className = `list-card list-card--row${hasOvlp ? ' list-card--overlap' : ''}`;
       row.style.borderLeft = `3px solid ${accent}`;
+      row.draggable = true;
+      row.dataset.universeId = uid;
+      row.dataset.fixtureIdx = idx;
 
       row.innerHTML = `
+        <span class="drag-handle" title="Drag to reorder">⠿</span>
         <div class="list-card__body">
           <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
             <span style="font-weight:600;font-size:14px;">${fx.id}</span>
@@ -143,6 +147,59 @@ function renderPatch() {
           <button class="btn--delete btn-sm" onclick="deleteFixture('${uid}','${fx.id}')">Delete</button>
         </div>
       `;
+
+      // Drag events for reordering
+      row.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', `${uid}:${idx}`);
+        row.classList.add('dragging');
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        list.querySelectorAll('.list-card').forEach(el => {
+          el.classList.remove('drag-over-above', 'drag-over-below');
+        });
+      });
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const rect = row.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        list.querySelectorAll('.list-card').forEach(el => {
+          el.classList.remove('drag-over-above', 'drag-over-below');
+        });
+        if (e.clientY < midY) {
+          row.classList.add('drag-over-above');
+        } else {
+          row.classList.add('drag-over-below');
+        }
+      });
+      row.addEventListener('dragleave', () => {
+        row.classList.remove('drag-over-above', 'drag-over-below');
+      });
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        row.classList.remove('drag-over-above', 'drag-over-below');
+        const data = e.dataTransfer.getData('text/plain');
+        const [srcUid, srcIdxStr] = data.split(':');
+        const srcIdx = parseInt(srcIdxStr);
+        if (srcUid !== uid) return; // Only reorder within same universe
+        const targetIdx = parseInt(row.dataset.fixtureIdx);
+        if (srcIdx === targetIdx) return;
+
+        const rect = row.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        let insertIdx = e.clientY < midY ? targetIdx : targetIdx + 1;
+
+        const uFixtures = patchConfig.universes[uid].fixtures;
+        const [moved] = uFixtures.splice(srcIdx, 1);
+        if (insertIdx > srcIdx) insertIdx--;
+        uFixtures.splice(insertIdx, 0, moved);
+
+        savePatchData();
+        renderPatch();
+      });
+
       list.appendChild(row);
     });
   });
