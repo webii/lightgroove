@@ -4,8 +4,7 @@ Handles fixture configuration, patching and control
 Author: https://github.com/oliverbyte
 """
 import json
-import os
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 
 
 class FixtureManager:
@@ -36,24 +35,44 @@ class FixtureManager:
             print(f"Error loading {filepath}: {e}")
             return {}
 
+    def _get_fixture_channels_count(self, fixture_type: str) -> int:
+        """Get the total number of channels for a fixture type"""
+        if fixture_type in self.fixtures_config:
+            return len(self.fixtures_config[fixture_type]["channels"])
+        return 0
+
     def _initialize_fixtures(self):
         """Initialize all patched fixtures"""
         for universe_str, universe_data in self.patch_config.get('universes', {}).items():
             universe_id = int(universe_str)
-            for fixture_data in universe_data.get('fixtures', []):
-                fixture_id = fixture_data['id']
-                fixture_type = fixture_data['type']
-                start_address = fixture_data['start_address']
-                
+            for fixture_data in universe_data.get("fixtures", []):
+                # Get the size property (how many physical fixtures this represents)
+                size = fixture_data.get("size", 1)
+                fixture_id = fixture_data["id"]
+                fixture_type = fixture_data["type"]
+                start_address = fixture_data["start_address"]
+
                 if fixture_type in self.fixtures_config:
-                    self.fixtures[fixture_id] = {
-                        'type': fixture_type,
-                        'universe': universe_id,
-                        'start_address': start_address,
-                        'config': self.fixtures_config[fixture_type],
-                        'state': {}
-                    }
-                    print(f"Initialized fixture '{fixture_id}' ({fixture_type}) at Universe {universe_id}, Address {start_address}")
+                    # Calculate channels per fixture
+                    channels_per_fixture = self._get_fixture_channels_count(
+                        fixture_type
+                    )
+
+                    # Generate multiple fixtures if size > 1
+                    for i in range(size):
+                        current_id = f"{fixture_id}{i}" if size > 1 else fixture_id
+                        current_start = start_address + i * channels_per_fixture
+
+                        self.fixtures[current_id] = {
+                            "type": fixture_type,
+                            "universe": universe_id,
+                            "start_address": current_start,
+                            "config": self.fixtures_config[fixture_type],
+                            "state": {},
+                        }
+                        print(
+                            f"Initialized fixture '{current_id}' ({fixture_type}) at Universe {universe_id}, Address {current_start}"
+                        )
                 else:
                     print(f"Warning: Fixture type '{fixture_type}' not found in fixtures.json")
     
@@ -259,19 +278,37 @@ class FixtureManager:
         if self.has_channel(fixture_id, 'color_wheel'):
             # Color wheel fixture
             if not is_black:  # Only set color wheel for non-black
-                wheel_value = self._rgbw_to_color_wheel(fixture_id, red, green, blue, white)
-                self.set_fixture_channel(fixture_id, 'color_wheel', wheel_value)
+                wheel_value = self._rgbw_to_color_wheel(
+                    fixture_id, red, green, blue, white
+                )
+                self.set_fixture_channel(fixture_id, "color_wheel", wheel_value)
         else:
             # Standard RGBW fixture
-            if self.has_channel(fixture_id, 'red'):
-                self.set_fixture_channel(fixture_id, 'red', red)
-            if self.has_channel(fixture_id, 'green'):
-                self.set_fixture_channel(fixture_id, 'green', green)
-            if self.has_channel(fixture_id, 'blue'):
-                self.set_fixture_channel(fixture_id, 'blue', blue)
-            if self.has_channel(fixture_id, 'white'):
-                self.set_fixture_channel(fixture_id, 'white', white)
-    
+            if self.has_channel(fixture_id, "red"):
+                self.set_fixture_channel(fixture_id, "red", red)
+            if self.has_channel(fixture_id, "green"):
+                self.set_fixture_channel(fixture_id, "green", green)
+            if self.has_channel(fixture_id, "blue"):
+                self.set_fixture_channel(fixture_id, "blue", blue)
+            if self.has_channel(fixture_id, "white"):
+                self.set_fixture_channel(fixture_id, "white", white)
+            else:
+                # For RGB-only fixtures, mix white channel into RGB channels
+                # This creates a proper white light when only white channel is set
+                if white > 0:
+                    if self.has_channel(fixture_id, "red"):
+                        self.set_fixture_channel(
+                            fixture_id, "red", min(1.0, red + white)
+                        )
+                    if self.has_channel(fixture_id, "green"):
+                        self.set_fixture_channel(
+                            fixture_id, "green", min(1.0, green + white)
+                        )
+                    if self.has_channel(fixture_id, "blue"):
+                        self.set_fixture_channel(
+                            fixture_id, "blue", min(1.0, blue + white)
+                        )
+
     def _get_fixture_dimmer(self, fixture_id: str) -> float:
         """
         Get current dimmer/intensity value of a fixture
