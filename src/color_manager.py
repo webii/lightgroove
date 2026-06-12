@@ -4,10 +4,11 @@ Color definitions and color FX engine for LightGroove.
 import threading
 import time
 import random
+import math 
 import json
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 
 def load_colors() -> Dict:
@@ -44,8 +45,8 @@ class ColorFXEngine:
     """
     Manages color effects that run server-side independently of UI.
     """
-    
-    def __init__(self, fixture_manager, state_file: str = None):
+
+    def __init__(self, fixture_manager, state_file: Optional[str] = None):
         self.fixture_manager = fixture_manager
         self.bpm = 20  # Default 20 BPM
         self.fade_percentage = 0.0  # Fade time as percentage of beat interval (0.0-1.0)
@@ -99,14 +100,15 @@ class ColorFXEngine:
         b = color_values.get('b', 0.0)
         w = color_values.get('w', 0.0)
         self.fixture_manager.set_fixture_color(fixture_id, r, g, b, w)
-    
-    def _apply_colors_with_fade(self, fixture_colors: dict, channel_map: dict) -> float:
+
+    def _apply_colors_with_fade(self, fixture_colors: dict, channel_map: dict, fixed_fade_time: Optional[float] = None) -> float:
         """Apply colors to multiple fixtures simultaneously with fade.
         
         Args:
             fixture_colors: Dict mapping fixture_id to color_values dict
             channel_map: Dict mapping short keys to channel names
-            
+            fixed_fade_time: Optional fixed fade time in seconds. If provided, overrides the BPM-based fade time.
+
         Returns:
             Actual fade time used in seconds
         """
@@ -119,7 +121,10 @@ class ColorFXEngine:
             return 0.0
         else:
             # Smooth fade - calculate actual time from percentage of beat interval
-            actual_fade_time = self.fade_percentage * self.get_interval()
+            if fixed_fade_time is not None:
+                actual_fade_time = fixed_fade_time
+            else:
+                actual_fade_time = self.fade_percentage * self.get_interval()
             steps = max(10, int(actual_fade_time * 20))  # 20 steps per second
             step_time = actual_fade_time / steps
             
@@ -178,25 +183,20 @@ class ColorFXEngine:
         self.running = True
         self.stop_event.clear()
         
-        if fx_name == 'random' or fx_name == 'random_1':
-            self.fx_thread = threading.Thread(target=self._run_random_fx, daemon=True)
-            self.fx_thread.start()
-            print(f"Color FX: Started 'random_1' effect at {self.bpm} BPM")
-        elif fx_name == 'random_2':
-            self.fx_thread = threading.Thread(target=self._run_random_2_fx, daemon=True)
-            self.fx_thread.start()
-            print(f"Color FX: Started 'random_2' effect at {self.bpm} BPM")
-        elif fx_name == 'random_3':
-            self.fx_thread = threading.Thread(target=self._run_random_3_fx, daemon=True)
-            self.fx_thread.start()
-            print(f"Color FX: Started 'random_3' effect at {self.bpm} BPM")
-        elif fx_name == 'random_4':
-            self.fx_thread = threading.Thread(target=self._run_random_4_fx, daemon=True)
-            self.fx_thread.start()
-            print(f"Color FX: Started 'random_4' effect at {self.bpm} BPM")
-        else:
-            print(f"Color FX: Unknown effect '{fx_name}'")
-            self.running = False
+        if fx_name == 'random' or fx_name.startswith('random_'):
+            if fx_name == 'random':
+                effect_num = 1
+            else:
+                effect_num = int(fx_name.split('_')[1])
+            
+            if 1 <= effect_num <= 5:
+                fx_method = getattr(self, f'_run_random_{effect_num}_fx')
+                self.fx_thread = threading.Thread(target=fx_method, daemon=True)
+                self.fx_thread.start()
+                print(f"Color FX: Started 'random_{effect_num}' effect at {self.bpm} BPM")
+            else:
+                print(f"Color FX: Unknown effect '{fx_name}'")
+                self.running = False
             
     def stop_fx(self):
         """Stop the currently running effect."""
@@ -426,7 +426,82 @@ class ColorFXEngine:
                 remaining_time = max(0.0, self.get_interval() - fade_time_used)
                 if self.stop_event.wait(remaining_time):
                     break
+
+    def _run_random_5_fx(self):
+        """Continuous gradient effect - smooth color transitions with clear left/right distinction."""
+        color_names = [c for c in COLORS.keys() if c != "black"]
+        channel_map = {"r": "red", "g": "green", "b": "blue", "w": "white"}
+        
+        # Initialize previous color
+        previous_color = COLORS.get("black", {"r": 0.0, "g": 0.0, "b": 0.0, "w": 0.0})
+
+        while self.running:
+            fixtures = self.fixture_manager.list_fixtures()
+            num_fixtures = len(fixtures)
+            if num_fixtures < 2:
+                if self.stop_event.wait(0.5):
+                    break
+                continue
+
+            # Pick random target color
+            last_color = self.current_colors if self.current_colors else None
+            available_colors = [c for c in color_names if c != last_color]
+            if not available_colors:
+                available_colors = color_names
+            color_name = random.choice(available_colors)
+            self.current_colors = [color_name]
+            target_color = COLORS[color_name]
+
+            total_frames = 180.0 
+            gradient_spread = 0.5 # lower more spread 
+            
+            for frame in range(int(total_frames)):
+                if not self.running:
+                    break
+                    
+                # Global time progress (0.0 to 1.0)
+                time_progress = frame / (total_frames - 1)
                 
+                fixture_colors = {}
+                for i, fixture_id in enumerate(fixtures):
+                    # Calculate spatial offset based on fixture index
+                    spatial_offset = (i / (num_fixtures - 1)) * gradient_spread if num_fixtures > 1 else 0
+                    
+                    # Map time progress to individual fixture progress window
+                    # Wider spread means fixture_progress advances much more slowly per frame
+                    fixture_progress = (time_progress * (1.0 + gradient_spread)) - spatial_offset
+                    fixture_progress = max(0.0, min(1.0, fixture_progress))
+                    
+                    # Ultra-smooth Cubic Smoothstep Easing (Closer to a true sine wave)
+                    # Formula: t^3 * (t * (t * 6 - 15) + 10)
+                    # This eliminates any perceived acceleration/deceleration snap points
+                    t = fixture_progress
+                    smooth_t = t * t * t * (t * (t * 6.0 - 15.0) + 10.0)
+                    
+                    # Linear interpolation using the ultra-smoothed factor
+                    r = previous_color["r"] + (target_color["r"] - previous_color["r"]) * smooth_t
+                    g = previous_color["g"] + (target_color["g"] - previous_color["g"]) * smooth_t
+                    b = previous_color["b"] + (target_color["b"] - previous_color["b"]) * smooth_t
+                    w = previous_color["w"] + (target_color["w"] - previous_color["w"]) * smooth_t
+                    
+                    fixture_colors[fixture_id] = {"r": r, "g": g, "b": b, "w": w}
+
+                # Apply with minimal fade for maximum smoothness
+                fade_time_used = self._apply_colors_with_fade(fixture_colors, channel_map, fixed_fade_time=0.01)
+                
+                # Precise 50 FPS timing adjustment
+                remaining_time = max(0.0, 0.02 - fade_time_used)
+                if self.stop_event.wait(remaining_time):
+                    break
+
+            # Set current target as previous color for next cycle
+            previous_color = target_color
+
+            # Continuous flow - no delay pause between color waves to eliminate jumps
+            if self.stop_event.wait(0.01):
+                break
+
+
     def is_running(self) -> bool:
         """Check if an effect is currently running."""
         return self.running
