@@ -24,7 +24,8 @@ class FixtureManager:
         self.fixtures_config = self._load_json(fixtures_file)
         self.patch_config = self._load_json(patch_file)
         self.fixtures = {}
-        
+        self.on_channel_changed = None  # callback(fixture_id, channel_name, value)
+
         self._initialize_fixtures()
     
     def _load_json(self, filepath: str) -> Dict:
@@ -100,6 +101,9 @@ class FixtureManager:
         
         # Update state
         fixture['state'][channel_name] = value
+
+        if self.on_channel_changed:
+            self.on_channel_changed(fixture_id, channel_name, value)
     
     def get_fixture_channel(self, fixture_id: str, channel_name: str) -> float:
         """
@@ -337,12 +341,14 @@ class FixtureManager:
     def flash_all_white(self):
         """Set all fixtures to full white for flash effect (ignores pan/tilt)"""
         for fixture_id in self.fixtures:
-            # Use set_fixture_color to handle both RGBW and color wheel fixtures
-            # Full white: w=1.0, r=g=b=0
             self.set_fixture_color(fixture_id, 0.0, 0.0, 0.0, 1.0)
-            # Set dimmer to full (not manual - don't save this value)
             self.set_fixture_dimmer(fixture_id, 1.0, manual=False)
-            # Note: pan and tilt channels are intentionally not modified during flash
+
+    def flash_all_color(self, r: float, g: float, b: float, w: float = 0.0):
+        """Set all fixtures to a specific color at full brightness for flash effect (ignores pan/tilt)"""
+        for fixture_id in self.fixtures:
+            self.set_fixture_color(fixture_id, r, g, b, w)
+            self.set_fixture_dimmer(fixture_id, 1.0, manual=False)
     
     def save_current_states(self) -> Dict[str, Dict[str, float]]:
         """Save current states of all fixtures for later restoration"""
@@ -400,4 +406,11 @@ class FixtureManager:
         for fixture_id in self.fixtures:
             if self.has_pan_tilt(fixture_id):
                 self.set_fixture_position(fixture_id, position)
+
+    def reload_patch(self, patch_file: str):
+        """Reload patch from file and reinitialize all fixtures."""
+        self.patch_config = self._load_json(patch_file)
+        self.fixtures = {}
+        self._initialize_fixtures()
+        print("Fixture Manager: Patch reloaded")
 
